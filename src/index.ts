@@ -1,8 +1,13 @@
-import { URN, type ignObj } from "ashes-urn"
+import { URN, type Module, type RequestOPT } from "ashes-urn"
 import { logger } from "toolbx"
+import type { Serve } from "bun";
+import { ServerRoot } from "./app/root/RootInterface";
+import { gateway } from "./app/gateway";
 
 // URN framework exported for other componments
-export const urn = new URN(true)
+export const urn = new URN({
+    enableVerbose: false // Enable verbose on routing
+})
 
 // Use args, powered by minimist
 
@@ -16,16 +21,16 @@ const env = urn.env()
 export const db = await urn.db('mongodb://localhost:27017', 'default') // db as mongodb interface
 export const cachedb = await urn.cdb('redis://127.0.0.1:6379') // cdb as redis interface
 
-// Server conf for urn.ignite()
-const serverConf: ignObj = {
-    listen: '127.0.0.1', // This can be undefined
-    port: 9901
-}
+/**
+ * 
+ * CheatSheet: Creating a working URN server instance
+ * 
+ * [createInstance] => loadInstance => igniteInstance
+ * 
+ */
 
-// Launch server and print the banner
-const server = await urn.ignite(serverConf, (server) => {
-    // Error handling Warning this is a must don't ask me why
-    server.onError(({ code }) => {
+export const instance = urn.createInstance()
+    .onError(({ code }) => {
         return {
             status: 'er',
             data: {
@@ -34,6 +39,24 @@ const server = await urn.ignite(serverConf, (server) => {
             }
         }
     })
-})
+//.use(swagger()); if you wish you can chain more plugins to the instance here
 
-logger(`+ URN running on ${serverConf.listen}:${serverConf.port}`, 0)
+export type MRequestOPT = RequestOPT & typeof instance['decorator'] // Extract RequestOPT for gateway and Modules
+
+// createInstance => [loadInstance] => igniteInstance
+const Modules: Module[] = [
+    ServerRoot
+]
+urn.loadInstance(Modules, false, gateway) //Load root
+
+/**
+ * ref to https://bun.sh/docs/api/http#bun-serve
+ */
+const serverConf: Partial<Serve> = {
+    hostname: '127.0.0.1', // This can be undefined
+    port: 9901
+}
+
+urn.igniteInstance(serverConf)
+
+logger(`+ URN running on ${serverConf.hostname}:${serverConf.port}`, 0)
