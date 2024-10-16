@@ -28,7 +28,7 @@ export const cachedb = await urn.cdb('redis://127.0.0.1:6379') // cdb as redis i
  * 
  */
 
-urn.instance = urn.createInstance()
+const instance = urn.createInstance()
     .onError(({ code, error, set }) => {
         set.status = 500
         return {
@@ -42,7 +42,9 @@ urn.instance = urn.createInstance()
     })
 //.use(swagger()); if you wish you can chain more plugins to the instance here
 
-export type ROPT = MRequestOPT<typeof urn.instance['decorator']> // Extract RequestOPT for gateway and Modules
+urn.instance = instance // Store the instance back
+
+export type OPT = MRequestOPT<typeof instance['decorator']> // Extract RequestOPT for gateway and Modules
 
 // createInstance => [loadInstance] => igniteInstance
 const Modules: Module[] = [
